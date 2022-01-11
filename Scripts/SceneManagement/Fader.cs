@@ -5,33 +5,32 @@ namespace U_RPG.SceneManagement
 {
     public class Fader : MonoBehaviour
     {
-        CanvasGroup CanvasGroup;
+        CanvasGroup canvasGroup;
 
-        private void Start()
+        private void Awake()
         {
-            CanvasGroup = GetComponent<CanvasGroup>();
-            //StartCoroutine(FadeOutIn());
+            canvasGroup = GetComponent<CanvasGroup>();
         }
-        
-         IEnumerator FadeOutIn()
+
+        public void FadeOutImmediate()
         {
-            yield return FadeOut(3f); print("FadeOut");
-            yield return FadeIn(1f); print("FadeIn");
+            canvasGroup.alpha = 1;
         }
-        public IEnumerator FadeOut(float time)
+
+        public IEnumerator FadeOut(float Time)
         {
-            while (CanvasGroup.alpha < 1)
+            while (canvasGroup.alpha < 1)
             {
-                CanvasGroup.alpha += Time.deltaTime / time;
+                canvasGroup.alpha += UnityEngine.Time.deltaTime / Time;
                 yield return null;
             }
         }
 
-        public IEnumerator FadeIn(float time)
+        public IEnumerator FadeIn(float Time)
         {
-            while (CanvasGroup.alpha > 0)
+            while (canvasGroup.alpha > 0)
             {
-                CanvasGroup.alpha -= Time.deltaTime / time;
+                canvasGroup.alpha -= UnityEngine.Time.deltaTime / Time;
                 yield return null;
             }
         }

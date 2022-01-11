@@ -1,60 +1,89 @@
+using System;
 using System.Collections;
-using System.Collections.Generic;
+using U_RPG.Saving;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 using UnityEngine.AI;
+using UnityEngine.SceneManagement;
 
 namespace U_RPG.SceneManagement
 {
     public class Portal : MonoBehaviour
     {
-        enum DestinationIdentifier { A, B, C, D, E } // Paryying the portals. Portal A's exit's is other Portal A.
-        [SerializeField] int SceneToLoad=-1;    [SerializeField] float FadeOutTime = 1f;
-        [SerializeField] float FadeInTime = 2f;     [SerializeField] float FadeWaitTime = 0.5f; 
-        [SerializeField] Transform SpawnPoint; [SerializeField] DestinationIdentifier Destination;
-        
-        private void OnTriggerEnter(Collider other) 
-        { // When player in portal, exit the other portal.
-           if(other.gameObject.tag == "Player")
-           {
-               StartCoroutine(Transition());
-           }        
+        enum DestinationIdentifier
+        {
+            A, B, C, D, E
         }
+
+        [SerializeField] int SceneToLoad = -1;
+        [SerializeField] Transform SpawnPoint;
+        [SerializeField] DestinationIdentifier Destination;
+        [SerializeField] float FadeOutTime = 1f;
+        [SerializeField] float FadeInTime = 2f;
+        [SerializeField] float FadeWaitTime = 0.5f;
+
+        private void OnTriggerEnter(Collider other)
+        {
+            if (other.tag == "Player")
+            {
+                StartCoroutine(Transition());
+            }
+        }
+
+        // Fadeout canvas effect, save the game and load the other map, spawn player at spawn point of other portal.
         private IEnumerator Transition()
         {
-            //White Transition effect when warping.
+            if (SceneToLoad < 0)
+            {
+                Debug.LogError("Scene to load not set.");
+                yield break;
+            }
+
             DontDestroyOnLoad(gameObject);
-            Fader Fader=FindObjectOfType<Fader>();
-            yield return Fader.FadeOut(FadeOutTime);
-            yield return SceneManager.LoadSceneAsync(SceneToLoad); // Wapring here.
-            Portal OtherPortal=GetOtherPoral();
+
+            Fader fader = FindObjectOfType<Fader>();
+            SavingWrapper savingWrapper = FindObjectOfType<SavingWrapper>();
+            
+            yield return fader.FadeOut(FadeOutTime);
+
+            savingWrapper.Save();
+
+            yield return SceneManager.LoadSceneAsync(SceneToLoad);
+
+            savingWrapper.Load();
+            
+            Portal OtherPortal = GetOtherPortal();
             UpdatePlayer(OtherPortal);
+
+            savingWrapper.Save();
+
             yield return new WaitForSeconds(FadeWaitTime);
-            yield return Fader.FadeIn(FadeInTime);
+            yield return fader.FadeIn(FadeInTime);
+
             Destroy(gameObject);
         }
-        private Portal GetOtherPoral()
-        {
-            // Each portal has a spessific exit portal. Find the true exit portal.
-            foreach(Portal Portal in FindObjectsOfType<Portal>())
-            {
-                if(Portal==this) { continue; }
-                if(Portal.Destination!= Destination) { continue; }
 
-                return Portal;
-            }
-            return null;
+        private void UpdatePlayer(Portal otherPortal)
+        {
+            GameObject player = GameObject.FindWithTag("Player");
+            player.GetComponent<NavMeshAgent>().enabled = false;
+            player.transform.position = otherPortal.SpawnPoint.position;
+            player.transform.rotation = otherPortal.SpawnPoint.rotation;
+            player.GetComponent<NavMeshAgent>().enabled = true;
         }
-        
-        private void UpdatePlayer (Portal OtherPortal)
-        {
 
-            GameObject Player=GameObject.FindWithTag("Player");
-            Player.GetComponent<NavMeshAgent>().Warp(OtherPortal.SpawnPoint.position);
-            Player.transform.rotation = OtherPortal.SpawnPoint.rotation;
-            // Player.transform.position=OtherPortal.SpawnPoint.position;
-            //Player.GetComponent<NavMeshAgent>().enabled = true;
+        // Every portal has a matched portal for warping. Find the match from enum.
+        private Portal GetOtherPortal()
+        {
+            foreach (Portal portal in FindObjectsOfType<Portal>())
+            {   
+                // A portal cannot match with itself. The other portal must be diffrent from itself.
+                if (portal == this) continue;
+                if (portal.Destination != Destination) continue;
+
+                return portal;
+            }
+
+            return null;
         }
     }
 }
-

@@ -1,61 +1,145 @@
-using UnityEngine;
-using U_RPG.Movement;
 using U_RPG.Combat;
-using U_RPG.Core;
+using U_RPG.Movement;
+using UnityEngine;
+using U_RPG.Resources;
+using System;
+using UnityEngine.EventSystems;
 
 namespace U_RPG.Control
-{   
+{
     public class PlayerController : MonoBehaviour
     {
-        Health Health;
-    private void Start()
-    {
-        Health=GetComponent<Health>();
-    }
+        Health health;
+
+        enum CursorType
+        {
+            None,
+            Movement,
+            Combat,
+            PickUp,
+
+            UI
+        }
+
+        [System.Serializable]
+        struct CursorMapping
+        {
+            public CursorType cursorType;
+            public Texture2D texture;
+            public Vector2 hotspot;
+        }
+
+        [SerializeField] CursorMapping[] CursorMappings = null;
+
+        private void Awake()
+        {
+            health = GetComponent<Health>();
+        }
+
         private void Update()
-        {
-            if(Health.IsDead()) return; // If we are dead do nothing.
-            if(InteactWithComat()) return; // İf attacked, dont execute the lower lines of code.
-            if(InteractWithMovement()) return; // if moved, dont execute the lower lines of code.
-        }
+        {   
+            if(InteractWithUI()) return;
 
-
-        private bool InteactWithComat()
-        {
-            RaycastHit[] hits=Physics.RaycastAll(GetMouseRay());
-            foreach(RaycastHit hit in hits)
+            if (health.IsDead()) 
             {
-                CombatTarget target=hit.transform.GetComponent<CombatTarget>();
-                if(target== null) continue;
-                
-                //If mouse hit is null, continue search.
-                if(!GetComponent<Fighter>().CanAttack(target.gameObject)) continue;
-                if(Input.GetMouseButtonDown(0)) // If its enemy, call attack func.
-                {
-                    GetComponent<Fighter>().Attack(target.gameObject);
-                }
-                    return true; // Find enemy to attack, return true.
+                SetCursor(CursorType.None);
+                return;
             }
-            return false; // Couldnt find enemy to attack, retrun false.
+
+            if (InteractWithCombat()) return;
+            if (InteractWithMovement()) return;
+            if(InteractWithPickUp())
+
+            SetCursor(CursorType.None);
         }
+
+        private bool InteractWithPickUp()
+        {
+            SetCursor(CursorType.PickUp);
+            throw new NotImplementedException();
+        }
+
+        private bool InteractWithUI()
+        {   
+            if(EventSystem.current.IsPointerOverGameObject())
+            {
+                SetCursor(CursorType.UI);
+                return true;
+            }
+
+            return false;
+        }
+
+        // Start to fight if possible
+        private bool InteractWithCombat()
+        {
+            RaycastHit[] Hits = Physics.RaycastAll(GetMouseRay());
+            foreach (RaycastHit Hit in Hits)
+            {
+                CombatTarget Target = Hit.transform.GetComponent<CombatTarget>();
+                if (Target == null) continue;
+
+                if (!GetComponent<Fighter>().CanAttack(Target.gameObject))
+                {
+                    continue;
+                }
+
+                if (Input.GetMouseButton(0))
+                {
+                    GetComponent<Fighter>().Attack(Target.gameObject);
+                }
+
+                SetCursor(CursorType.Combat);
+                return true;
+            }
+            return false;
+        }
+
+ 
+
+        // Go to left mouse click.
         private bool InteractWithMovement()
         {
-            RaycastHit hit;
-            if (Physics.Raycast(GetMouseRay(), out hit)) // İf there is a moveable place
+            RaycastHit Hit;
+            bool bHasHit = Physics.Raycast(GetMouseRay(), out Hit);
+            if (bHasHit)
             {
                 if (Input.GetMouseButton(0))
                 {
-                    GetComponent<Mover>().StartMoveAction(hit.point,1f);// move there and return true;
+                    GetComponent<Mover>().StartMoveAction(Hit.point, 1f);
                 }
+
+
+                SetCursor(CursorType.Movement);
                 return true;
             }
-            return false; // if there is not, return false.
+            return false;
+        }
+
+        private void SetCursor(CursorType type)
+        {
+            CursorMapping cursorMapping = GetCursorMapping(type);
+            Cursor.SetCursor(cursorMapping.texture, cursorMapping.hotspot, CursorMode.Auto);
+            
+
+        }
+
+        private CursorMapping GetCursorMapping(CursorType type)
+        {
+            foreach (CursorMapping mapping in CursorMappings)
+            {
+                if(mapping.cursorType == type)
+                {
+                    return mapping;
+                }
+            }
+
+            return CursorMappings[0];
         }
 
         private static Ray GetMouseRay()
         {
             return Camera.main.ScreenPointToRay(Input.mousePosition);
         }
-
     }
 }

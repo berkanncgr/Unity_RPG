@@ -4,49 +4,22 @@ namespace U_RPG.Core
 {
     public class ActionScheduler : MonoBehaviour
     {
-
         IAction CurrentAction;
 
-        public void StartAction(IAction Action)
+        // Switch between actions. Attack or move. Becouse same button attached to that actions.
+        public void StartAction(IAction action)
         {
-            // Cancells attack if moving is start; Cancells moving if attack is start.
-            if (CurrentAction==Action) return;
-            if(CurrentAction!=null)
+            if (CurrentAction == action) return;
+            if (CurrentAction != null)
             {
                 CurrentAction.Cancel();
-                print("Cancellinng "+CurrentAction);
-            } 
-            CurrentAction=Action;
+            }
+            CurrentAction = action;
         }
-        
+
         public void CancelCurrentAction()
         {
             StartAction(null);
         }
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
     }
 }

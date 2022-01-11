@@ -1,81 +1,71 @@
-using System.Collections;
-using System.Collections.Generic;
+﻿using U_RPG.Core;
+using U_RPG.Saving;
 using UnityEngine;
 using UnityEngine.AI;
-using U_RPG.Core;
-
+using U_RPG.Resources;
 
 namespace U_RPG.Movement
 {
-    //This class is about enemy and player. Enemy and player both have this class.IF 
-    public class Mover : MonoBehaviour, IAction
+    public class Mover : MonoBehaviour, IAction, ISaveable
     {
-        NavMeshAgent navMeshAgent;
-        Health Health;
-        [SerializeField] float MaxSpeed=6f;
+        [SerializeField] Transform Target;
+        [SerializeField] float MaxSpeed = 6f;
 
-        private void Start()
+        NavMeshAgent navMeshAgent;
+        Health health;
+
+        private void Awake()
         {
-             navMeshAgent=GetComponent<NavMeshAgent>();
-             Health=GetComponent<Health>();
+            navMeshAgent = GetComponent<NavMeshAgent>();
+            health = GetComponent<Health>();
         }
 
-        // Update is called once per frame
         void Update()
         {
-            navMeshAgent.enabled=!Health.IsDead(); // If not dead, enable nav mesh.
-            UpdateAnimator(); //Update the animator.
+            navMeshAgent.enabled = !health.IsDead();
+
+            // If character is moving, update animation.
+            UpdateAnimator();
         }
 
-        private void MoveToCursor()
+        public void StartMoveAction(Vector3 destination, float speedFraction)
         {
-            // Move to left mouse hit point. This function is called for the player only.
-            Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-            RaycastHit hit;
-            // bool HasHit = Physics.Raycast(ray,hit);
-            if (Physics.Raycast(ray, out hit)) // if mouse hit is moveable location, move to there.
-            {
-                MoveTo(hit.point,MaxSpeed);
-            }
+            GetComponent<ActionScheduler>().StartAction(this);
+            MoveTo(destination, speedFraction);
         }
 
-        public void MoveTo(Vector3 destination, float SpeedFraction)
+        public void MoveTo(Vector3 destination, float speedFraction)
         {
             navMeshAgent.destination = destination;
-            navMeshAgent.speed=MaxSpeed*Mathf.Clamp01(SpeedFraction);
+            navMeshAgent.speed = MaxSpeed * Mathf.Clamp01(speedFraction);
             navMeshAgent.isStopped = false;
+        }
+
+        public void Cancel()
+        {
+            navMeshAgent.isStopped = true;
         }
 
         private void UpdateAnimator()
         {
-            //Vector3 Velocity = NavMeshAgnet.velocity;
-            Vector3 LocalVelocity = transform.InverseTransformDirection(GetComponent<NavMeshAgent>().velocity);
-            //float Speed=LocalVelocity.z;
-            GetComponent<Animator>().SetFloat("ForwardSpeed", LocalVelocity.z);
+            Vector3 Velocity = navMeshAgent.velocity;
+            Vector3 LocalVelocity = transform.InverseTransformDirection(Velocity);
+            float Speed = LocalVelocity.z;
+            GetComponent<Animator>().SetFloat("forwardSpeed", Speed);
         }
-    
-        public void Cancel()
+
+        public object CaptureState()
         {
-            //Provides player stops moving when enough distance to enemy.
-            navMeshAgent.isStopped=true; 
+            return new SerializableVector3(transform.position);
         }
-        public void StartMoveAction(Vector3 Destination, float SpeedFraction)
+
+        public void RestoreState(object State)
         {
-            GetComponent<ActionScheduler>().StartAction(this); // Update action log. Player is moving.
-            //GetComponent<Fighter>().Cancel();
-            MoveTo(Destination,SpeedFraction);
-        }    
-    
-       
-    
-    
-    
-    
-    
-    
-    
-
-
-
+            SerializableVector3 Position = (SerializableVector3)State;
+            GetComponent<NavMeshAgent>().enabled = false;
+            transform.position = Position.ToVector();
+            GetComponent<NavMeshAgent>().enabled = true;
+            GetComponent<ActionScheduler>().CancelCurrentAction();
+        }
     }
 }
